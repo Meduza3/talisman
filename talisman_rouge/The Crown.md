@@ -1,0 +1,1 @@
+The Crown is the item that when put into the inventory wins the game.

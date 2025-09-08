@@ -1,0 +1,2 @@
+the gameplay loop consists of looting for items and getting stronger to find the guardian defeat him to obtain [[The Crown]].
+game starts -> [[map]] loads and the [[cards]] are shuffled -> the first [[round]] begins.
