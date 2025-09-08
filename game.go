@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"sort"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const stepDelay = 0.18 // seconds between tile steps while resolving a roll
@@ -33,9 +36,35 @@ type Game struct {
 	CardActive   bool
 	Card         Card
 	CardResolved bool
-	CardMsg      string // result message after Interact
+	Log          []string // newest last
+
+	CardMsg string // result message after Interact
+
+	// Inventory menu
+	InventoryActive      bool
+	StrengthButtonBounds rl.Rectangle
+	MagicButtonBounds    rl.Rectangle
+	InventorySelectedIndex int // Selected item index: 0-N for cards, then buttons
+	InventoryCardScrollOffset int // For scrolling through cards
+
+	// Shop inventory
+	ShopActive     bool
+	ShopCards      [3]Card
+	ShopPrices     [3]int
+	ShopSelected   int
+	ExitButtonBounds rl.Rectangle
+	LastPurchaseTime float32 // For shopkeeper animation
 }
 
+// keep only the last N lines
+const logMax = 8
+
+func (g *Game) logf(format string, args ...any) {
+	g.Log = append(g.Log, fmt.Sprintf(format, args...))
+	if len(g.Log) > logMax {
+		g.Log = g.Log[len(g.Log)-logMax:]
+	}
+}
 func (g *Game) CanRoll() bool { return g.Phase == PhaseIdle }
 
 func (g *Game) Roll() {
@@ -66,7 +95,8 @@ func (g *Game) Update(dt float32, w *World) {
 	}
 	if g.StepsRemaining == 0 {
 		// Spawn a card for the tile we just landed on
-		g.Card = RandCard()
+		curLoop := w.Loops[g.Player.At.Loop]
+		g.Card = DrawFromDeck(curLoop.Type.Deck)
 		g.CardActive = true
 		g.CardResolved = false
 		g.CardMsg = ""
@@ -74,6 +104,14 @@ func (g *Game) Update(dt float32, w *World) {
 		g.Dests = nil
 		g.Path = nil
 	}
+}
+
+// DrawFromDeck returns a random card from the deck (fallback to RandCard if empty).
+func DrawFromDeck(d Deck) Card {
+	if len(d.Cards) == 0 {
+		return RandCard()
+	}
+	return d.Cards[rand.Intn(len(d.Cards))]
 }
 
 func isShopTile(w *World, id TileID) bool {
@@ -329,4 +367,20 @@ func destAfterSteps(start TileID, steps, dir int, w *World) TileID {
 		cur = stepDir(cur, dir, w)
 	}
 	return cur
+}
+
+// Initialize shop from persistent shop data
+func (g *Game) InitShop(shopData *ShopType) {
+	// Load from persistent shop data
+	for i := 0; i < 3; i++ {
+		g.ShopCards[i] = shopData.Cards[i]
+		g.ShopPrices[i] = shopData.Prices[i]
+	}
+	g.ShopSelected = 0
+	
+	// Mark shop as discovered
+	if !shopData.Discovered {
+		shopData.Discovered = true
+		g.logf("Discovered %s!", shopData.Name)
+	}
 }
